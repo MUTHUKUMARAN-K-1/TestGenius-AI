@@ -74,14 +74,9 @@
       "parameters": {
         "method": "POST",
         "url": "={{ $('Set Test Input').item.json.api_base_url }}/api/v1/analyze/behaviors",
-        "sendHeaders": true,
-        "headerParameters": {
-          "parameters": [
-            { "name": "Content-Type", "value": "application/json" }
-          ]
-        },
         "sendBody": true,
-        "contentType": "json",
+        "contentType": "raw",
+        "rawContentType": "application/json",
         "body": "={{ JSON.stringify({ source_code: $('Set Test Input').item.json.source_code, language: $('Set Test Input').item.json.language }) }}",
         "options": {
           "response": { "response": { "responseFormat": "json" } }
@@ -98,14 +93,9 @@
       "parameters": {
         "method": "POST",
         "url": "={{ $('Set Test Input').item.json.api_base_url }}/api/v1/analyze/complexity",
-        "sendHeaders": true,
-        "headerParameters": {
-          "parameters": [
-            { "name": "Content-Type", "value": "application/json" }
-          ]
-        },
         "sendBody": true,
-        "contentType": "json",
+        "contentType": "raw",
+        "rawContentType": "application/json",
         "body": "={{ JSON.stringify({ source_code: $('Set Test Input').item.json.source_code, language: $('Set Test Input').item.json.language }) }}",
         "options": {
           "response": { "response": { "responseFormat": "json" } }
@@ -122,14 +112,9 @@
       "parameters": {
         "method": "POST",
         "url": "={{ $('Set Test Input').item.json.api_base_url }}/api/v1/analyze/security",
-        "sendHeaders": true,
-        "headerParameters": {
-          "parameters": [
-            { "name": "Content-Type", "value": "application/json" }
-          ]
-        },
         "sendBody": true,
-        "contentType": "json",
+        "contentType": "raw",
+        "rawContentType": "application/json",
         "body": "={{ JSON.stringify({ openapi_spec: { openapi: '3.0.0', info: { title: 'Test API', version: '1.0.0' }, paths: {} } }) }}",
         "options": {
           "response": { "response": { "responseFormat": "json" } }
@@ -146,14 +131,9 @@
       "parameters": {
         "method": "POST",
         "url": "={{ $('Set Test Input').item.json.api_base_url }}/api/v1/generate/multi-agent",
-        "sendHeaders": true,
-        "headerParameters": {
-          "parameters": [
-            { "name": "Content-Type", "value": "application/json" }
-          ]
-        },
         "sendBody": true,
-        "contentType": "json",
+        "contentType": "raw",
+        "rawContentType": "application/json",
         "body": "={{ JSON.stringify({ source_code: $('Set Test Input').item.json.source_code, framework: $('Set Test Input').item.json.framework, language: $('Set Test Input').item.json.language, test_types: ['unit', 'integration', 'edge_case', 'security'], max_iterations: $('Set Test Input').item.json.max_iterations }) }}",
         "options": {
           "timeout": 120000,
@@ -171,14 +151,9 @@
       "parameters": {
         "method": "POST",
         "url": "={{ $('Set Test Input').item.json.api_base_url }}/api/v1/analyze/quality",
-        "sendHeaders": true,
-        "headerParameters": {
-          "parameters": [
-            { "name": "Content-Type", "value": "application/json" }
-          ]
-        },
         "sendBody": true,
-        "contentType": "json",
+        "contentType": "raw",
+        "rawContentType": "application/json",
         "body": "={{ JSON.stringify({ test_code: $('Agent 2 — Generator (LLM)').item.json.test_code, language: $('Set Test Input').item.json.language }) }}",
         "options": {
           "response": { "response": { "responseFormat": "json" } }
@@ -195,14 +170,9 @@
       "parameters": {
         "method": "POST",
         "url": "={{ $('Set Test Input').item.json.api_base_url }}/api/v1/analyze/mutations/execute",
-        "sendHeaders": true,
-        "headerParameters": {
-          "parameters": [
-            { "name": "Content-Type", "value": "application/json" }
-          ]
-        },
         "sendBody": true,
-        "contentType": "json",
+        "contentType": "raw",
+        "rawContentType": "application/json",
         "body": "={{ JSON.stringify({ source_code: $('Set Test Input').item.json.source_code, requirements: $('Agent 2 — Generator (LLM)').item.json.test_code, framework: $('Set Test Input').item.json.framework, language: $('Set Test Input').item.json.language }) }}",
         "options": {
           "response": { "response": { "responseFormat": "json" } }
@@ -219,14 +189,9 @@
       "parameters": {
         "method": "POST",
         "url": "={{ $('Set Test Input').item.json.api_base_url }}/api/v1/analyze/gaps",
-        "sendHeaders": true,
-        "headerParameters": {
-          "parameters": [
-            { "name": "Content-Type", "value": "application/json" }
-          ]
-        },
         "sendBody": true,
-        "contentType": "json",
+        "contentType": "raw",
+        "rawContentType": "application/json",
         "body": "={{ JSON.stringify({ source_code: $('Set Test Input').item.json.source_code, test_code: $('Agent 2 — Generator (LLM)').item.json.test_code, language: $('Set Test Input').item.json.language }) }}",
         "options": {
           "response": { "response": { "responseFormat": "json" } }
