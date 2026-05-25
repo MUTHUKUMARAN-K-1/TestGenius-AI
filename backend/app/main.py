@@ -53,7 +53,7 @@ app.include_router(frameworks_router)
 app.include_router(multi_agent_router)
 
 
-@app.get("/health", tags=["system"])
+@app.api_route("/health", methods=["GET", "HEAD"], tags=["system"])
 async def health():
     """Full system health check with LLM status and usage."""
     provider = get_provider_info()
