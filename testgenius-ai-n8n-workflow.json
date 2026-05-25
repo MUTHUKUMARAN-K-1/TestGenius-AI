@@ -41,7 +41,7 @@
             {
               "id": "a5",
               "name": "api_base_url",
-              "value": "http://localhost:8000",
+              "value": "https://testgenius-ai.onrender.com",
               "type": "string"
             }
           ]
