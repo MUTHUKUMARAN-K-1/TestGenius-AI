@@ -60,6 +60,7 @@
         "method": "GET",
         "url": "={{ $('Set Test Input').item.json.api_base_url }}/health",
         "options": {
+          "timeout": 90000,
           "response": { "response": { "responseFormat": "json" } }
         }
       },
