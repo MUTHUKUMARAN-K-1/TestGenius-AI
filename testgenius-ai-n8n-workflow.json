@@ -53,7 +53,22 @@
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
       "position": [420, 380],
-      "notes": "Configure: source_code, requirements, api_spec, framework, language"
+      "notes": "Configure: source_code, framework, language, max_iterations, api_base_url"
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $('Set Test Input').item.json.api_base_url }}/health",
+        "options": {
+          "response": { "response": { "responseFormat": "json" } }
+        }
+      },
+      "id": "2a7016ff-e488-4206-a315-ee50adee596a",
+      "name": "Health Check",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [640, 380],
+      "notes": "Verify TestGenius AI backend is online. Gates entire pipeline — fails fast if backend down."
     },
     {
       "parameters": {
@@ -76,8 +91,8 @@
       "name": "Agent 1 — Analyzer (Behaviors)",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [660, 200],
-      "notes": "AST-based behavior extraction. Identifies testable behaviors from source code."
+      "position": [880, 160],
+      "notes": "AST-based behavior extraction. Identifies testable behaviors from source code. Output feeds Agent 2."
     },
     {
       "parameters": {
@@ -100,8 +115,32 @@
       "name": "Agent 1 — Analyzer (Complexity)",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [660, 560],
-      "notes": "Cyclomatic complexity scoring. Determines how many tests to generate per function."
+      "position": [880, 380],
+      "notes": "Cyclomatic complexity scoring. Grades code A–D. Parallel to Behaviors + Security. Merges at Format."
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('Set Test Input').item.json.api_base_url }}/api/v1/analyze/security",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "Content-Type", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "json",
+        "body": "={{ JSON.stringify({ openapi_spec: { openapi: '3.0.0', info: { title: 'Test API', version: '1.0.0' }, paths: {} } }) }}",
+        "options": {
+          "response": { "response": { "responseFormat": "json" } }
+        }
+      },
+      "id": "02be2202-5b11-4f94-9c38-17c607e95ad7",
+      "name": "Security Scanner (OWASP)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [880, 600],
+      "notes": "OWASP Top 10: IDOR, SQL injection, mass assignment, broken auth, rate limiting. Parallel. Merges at Format."
     },
     {
       "parameters": {
@@ -125,8 +164,8 @@
       "name": "Agent 2 — Generator (LLM)",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [920, 380],
-      "notes": "Behavior-guided LLM test generation. Produces initial test suite targeting all extracted behaviors."
+      "position": [1120, 160],
+      "notes": "Behavior-guided LLM test generation. Triggered ONLY by Agent 1 Behaviors (not Complexity) to avoid duplicate runs."
     },
     {
       "parameters": {
@@ -149,7 +188,7 @@
       "name": "Agent 3 — Validator (Quality Score)",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [1160, 380],
+      "position": [1360, 160],
       "notes": "Scores tests on 5 dimensions: assertions, edge cases, error handling, isolation, docs. Grades A–D."
     },
     {
@@ -173,39 +212,13 @@
       "name": "Agent 4 — Refiner (Mutation Testing)",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [1400, 380],
-      "notes": "MuTAP-inspired: mutates source code, runs tests against mutants, identifies survivors. Feeds back to generator."
-    },
-    {
-      "parameters": {
-        "method": "GET",
-        "url": "={{ $('Set Test Input').item.json.api_base_url }}/api/v1/pipeline/logs",
-        "options": {
-          "response": { "response": { "responseFormat": "json" } }
-        }
-      },
-      "id": "b99159f6-e866-43e4-9e49-18c5d0ffd60e",
-      "name": "Agent 5 — Coverage Mapper (Logs)",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
-      "position": [1640, 380],
-      "notes": "Semantic behavior coverage mapping. Reports what % of extracted behaviors are tested."
-    },
-    {
-      "parameters": {
-        "jsCode": "const generation = $('Agent 2 — Generator (LLM)').item.json;\nconst quality = $('Agent 3 — Validator (Quality Score)').item.json;\nconst mutations = $('Agent 4 — Refiner (Mutation Testing)').item.json;\nconst behaviors = $('Agent 1 — Analyzer (Behaviors)').item.json;\nconst complexity = $('Agent 1 — Analyzer (Complexity)').item.json;\n\nreturn [{\n  json: {\n    run_id: generation.run_id,\n    status: 'completed',\n    summary: {\n      quality_grade: generation.quality?.grade || quality.grade,\n      quality_score: generation.quality?.overall || quality.overall,\n      tests_generated: generation.syntax_validation?.test_count || 0,\n      behaviors_extracted: behaviors.total_behaviors || 0,\n      behavior_coverage_pct: generation.behavior_coverage?.coverage_pct || 0,\n      mutation_score_pct: mutations.mutation_score || generation.mutation_testing?.mutation_score || 0,\n      mutants_killed: mutations.killed_count || generation.mutation_testing?.killed || 0,\n      mutants_survived: mutations.surviving_count || generation.mutation_testing?.survived || 0,\n      iterations_performed: generation.iterations_performed || 1,\n      processing_time_s: (generation.processing_time_ms / 1000).toFixed(1),\n      complexity_grade: complexity.grade,\n      functions_analyzed: complexity.total_functions || 0\n    },\n    test_code: generation.test_code,\n    test_files: generation.test_files || [],\n    pipeline_stages: [\n      { stage: '1. Analyzer',  status: 'done', output: `${behaviors.total_behaviors} behaviors extracted` },\n      { stage: '2. Generator', status: 'done', output: `${(generation.test_code || '').length} chars generated` },\n      { stage: '3. Validator', status: 'done', output: `Grade ${generation.quality?.grade || quality.grade} — ${generation.quality?.overall || quality.overall}/100` },\n      { stage: '4. Refiner',   status: 'done', output: `${mutations.killed_count || 0} mutants killed` },\n      { stage: '5. Mapper',    status: 'done', output: `${generation.behavior_coverage?.coverage_pct || 0}% coverage` }\n    ]\n  }\n}];"
-      },
-      "id": "cb5fc842-e52a-4632-ab92-1dcea25af088",
-      "name": "Format Final Result",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [1880, 380],
-      "notes": "Merges outputs from all 5 agents into a single structured result with grade, coverage, mutation score."
+      "position": [1600, 160],
+      "notes": "MuTAP-inspired: mutates source code, runs tests against mutants, identifies survivors. Reports kill ratio."
     },
     {
       "parameters": {
         "method": "POST",
-        "url": "={{ $('Set Test Input').item.json.api_base_url }}/api/v1/analyze/security",
+        "url": "={{ $('Set Test Input').item.json.api_base_url }}/api/v1/analyze/gaps",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
@@ -214,32 +227,28 @@
         },
         "sendBody": true,
         "contentType": "json",
-        "body": "={{ JSON.stringify({ openapi_spec: { openapi: '3.0.0', info: { title: 'Test API' }, paths: {} } }) }}",
+        "body": "={{ JSON.stringify({ source_code: $('Set Test Input').item.json.source_code, test_code: $('Agent 2 — Generator (LLM)').item.json.test_code, language: $('Set Test Input').item.json.language }) }}",
         "options": {
           "response": { "response": { "responseFormat": "json" } }
         }
       },
-      "id": "02be2202-5b11-4f94-9c38-17c607e95ad7",
-      "name": "Security Scanner (OWASP)",
+      "id": "b99159f6-e866-43e4-9e49-18c5d0ffd60e",
+      "name": "Agent 5 — Coverage Mapper (Gaps)",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [660, 740],
-      "notes": "OWASP Top 10 scanner: IDOR, SQL injection, mass assignment, broken auth, rate limiting gaps."
+      "position": [1840, 160],
+      "notes": "Semantic behavior coverage gap analysis. Reports which extracted behaviors have no test coverage."
     },
     {
       "parameters": {
-        "method": "GET",
-        "url": "={{ $('Set Test Input').item.json.api_base_url }}/health",
-        "options": {
-          "response": { "response": { "responseFormat": "json" } }
-        }
+        "jsCode": "const generation = $('Agent 2 — Generator (LLM)').item.json;\nconst quality = $('Agent 3 — Validator (Quality Score)').item.json;\nconst mutations = $('Agent 4 — Refiner (Mutation Testing)').item.json;\nconst behaviors = $('Agent 1 — Analyzer (Behaviors)').item.json;\nconst complexity = $('Agent 1 — Analyzer (Complexity)').item.json;\nconst coverage = $('Agent 5 — Coverage Mapper (Gaps)').item.json;\nconst security = $('Security Scanner (OWASP)').item.json;\n\nreturn [{\n  json: {\n    run_id: generation.run_id,\n    status: 'completed',\n    summary: {\n      quality_grade: generation.quality?.grade || quality.grade,\n      quality_score: generation.quality?.overall || quality.overall,\n      tests_generated: generation.syntax_validation?.test_count || 0,\n      behaviors_extracted: behaviors.total_behaviors || 0,\n      behavior_coverage_pct: coverage.coverage_pct || generation.behavior_coverage?.coverage_pct || 0,\n      uncovered_behaviors: coverage.gaps?.length || 0,\n      mutation_score_pct: mutations.mutation_score || generation.mutation_testing?.mutation_score || 0,\n      mutants_killed: mutations.killed_count || generation.mutation_testing?.killed || 0,\n      mutants_survived: mutations.surviving_count || generation.mutation_testing?.survived || 0,\n      iterations_performed: generation.iterations_performed || 1,\n      processing_time_s: (generation.processing_time_ms / 1000).toFixed(1),\n      complexity_grade: complexity.grade,\n      functions_analyzed: complexity.total_functions || 0,\n      security_issues: security.vulnerabilities?.length || 0,\n      security_risk: security.risk_level || 'low'\n    },\n    test_code: generation.test_code,\n    test_files: generation.test_files || [],\n    coverage_gaps: coverage.gaps || [],\n    security_findings: security.vulnerabilities || [],\n    pipeline_stages: [\n      { stage: '1. Analyzer',  status: 'done', output: `${behaviors.total_behaviors || 0} behaviors extracted, complexity ${complexity.grade}` },\n      { stage: '2. Generator', status: 'done', output: `${generation.syntax_validation?.test_count || 0} tests generated` },\n      { stage: '3. Validator', status: 'done', output: `Grade ${generation.quality?.grade || quality.grade || '?'} — ${generation.quality?.overall || quality.overall || 0}/100` },\n      { stage: '4. Refiner',   status: 'done', output: `${mutations.killed_count || 0} mutants killed, score ${mutations.mutation_score || 0}%` },\n      { stage: '5. Mapper',    status: 'done', output: `${coverage.coverage_pct || 0}% covered, ${coverage.gaps?.length || 0} gaps` },\n      { stage: 'Security',     status: 'done', output: `${security.vulnerabilities?.length || 0} issues, risk: ${security.risk_level || 'low'}` }\n    ]\n  }\n}];"
       },
-      "id": "2a7016ff-e488-4206-a315-ee50adee596a",
-      "name": "Health Check",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
-      "position": [420, 160],
-      "notes": "Verify TestGenius AI backend is online before running pipeline."
+      "id": "cb5fc842-e52a-4632-ab92-1dcea25af088",
+      "name": "Format Final Result",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2080, 380],
+      "notes": "Merges all 5 agent outputs + security scan into single structured result. Triggered by Agent 5, Complexity, and Security branches."
     },
     {
       "parameters": {
@@ -253,20 +262,22 @@
       "name": "Token Usage Stats",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [2100, 380],
-      "notes": "Track LLM token consumption and estimated cost after pipeline run."
+      "position": [2320, 380],
+      "notes": "Track LLM token consumption and estimated cost after pipeline completes."
     }
   ],
   "connections": {
     "Start Pipeline": {
       "main": [
-        [
-          { "node": "Health Check", "type": "main", "index": 0 },
-          { "node": "Set Test Input", "type": "main", "index": 0 }
-        ]
+        [{ "node": "Set Test Input", "type": "main", "index": 0 }]
       ]
     },
     "Set Test Input": {
+      "main": [
+        [{ "node": "Health Check", "type": "main", "index": 0 }]
+      ]
+    },
+    "Health Check": {
       "main": [
         [
           { "node": "Agent 1 — Analyzer (Behaviors)", "type": "main", "index": 0 },
@@ -282,7 +293,12 @@
     },
     "Agent 1 — Analyzer (Complexity)": {
       "main": [
-        [{ "node": "Agent 2 — Generator (LLM)", "type": "main", "index": 0 }]
+        [{ "node": "Format Final Result", "type": "main", "index": 0 }]
+      ]
+    },
+    "Security Scanner (OWASP)": {
+      "main": [
+        [{ "node": "Format Final Result", "type": "main", "index": 0 }]
       ]
     },
     "Agent 2 — Generator (LLM)": {
@@ -297,10 +313,10 @@
     },
     "Agent 4 — Refiner (Mutation Testing)": {
       "main": [
-        [{ "node": "Agent 5 — Coverage Mapper (Logs)", "type": "main", "index": 0 }]
+        [{ "node": "Agent 5 — Coverage Mapper (Gaps)", "type": "main", "index": 0 }]
       ]
     },
-    "Agent 5 — Coverage Mapper (Logs)": {
+    "Agent 5 — Coverage Mapper (Gaps)": {
       "main": [
         [{ "node": "Format Final Result", "type": "main", "index": 0 }]
       ]
